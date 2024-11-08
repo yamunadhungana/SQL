@@ -1,0 +1,168 @@
+
+Create Database MovieProject
+
+Use MovieProject
+
+Create Table Users
+(
+ 	UserId Varchar(50) Constraint pk_UserId Primary Key,
+ 	UserName Varchar(50) Not null,
+ 	Password Varchar(50) Not null,
+ 	Age Int Not null,
+ 	Gender Char(1) Check(Gender IN('M', 'F')),
+ 	EmailId Varchar(50) Unique,
+ 	PhoneNumber Numeric(10) Not null
+ )
+
+
+ Create Table TheatreDetails
+(
+	TheatreId int Constraint pk_TheatredId Primary key Identity(1,1),
+ 	TheatreName Varchar(50) Not null,
+ 	Location Varchar(50) Not null
+ )
+
+
+Create Table ShowDetails
+(
+	ShowId Int Constraint pk_ShowId Primary key Identity(1001,1),
+ 	TheatreId Int Constraint fk_TheatreId Foreign key References TheatreDetails(TheatreId) not null,
+ 	ShowDate Date Not null,
+ 	ShowTime Time Not null,
+ 	MovieName Varchar(50) Not Null,
+ 	TicketCost Decimal(6,2) Not null,
+ 	TicketsAvailable int not null
+)
+
+
+Create Table Bookingdetails
+(
+ 	BookingId Varchar(50) Constraint pk_BookingId Primary key,
+ 	UserId Varchar(50) Constraint fk_UserId Foreign key references Users(UserId) not null,
+	ShowId Int Constraint fk_ShowId Foreign key references ShowDetails(ShowId) not null,
+	NoOfTickets int Not null,
+ 	TotalAmt Decimal(6,2) Not null,
+ 	Constraint BookingId_Chk Check(BookingId Like 'B%' AND BookingId Between 'B1001' and 'B9999')
+ )
+
+--Inserting values
+INSERT [Users] ([UserId],[UserName],[Password],[Age],[Gender], [EmailId], [PhoneNumber]) Values (N'mary_potter', N'Mary Potter', N'Mary@123', 25, N'F', N'mary_p@gmail.com', 9786543211)
+INSERT [Users] ([UserId],[UserName],[Password],[Age],[Gender], [EmailId], [PhoneNumber]) Values (N'jack_sparrow',N'Jack Sparrow', N'Spar78!jack',28,N'M', N'jack_spa@yahoo.com',7865432102)
+
+
+
+SET IDENTITY_INSERT TheatreDetails ON 
+GO
+INSERT [TheatreDetails] ([TheatreId], [TheatreName], [Location]) VALUES (1, N'PVR',N'Pune')
+INSERT [TheatreDetails] ([TheatreId], [TheatreName], [Location]) VALUES (2, N'Inox', N'Delhi')
+SET IDENTITY_INSERT TheatreDetails OFF
+GO
+
+
+
+SET IDENTITY_INSERT ShowDetails ON 
+GO
+INSERT [ShowDetails] ([ShowId],[TheatreId],[ShowDate], [ShowTime],[MovieName],[TicketCost], [TicketsAvailable]) Values(1001, 2, '28-MAY-2018', '14:30', 'Avengers', 250.00, 100)
+INSERT [ShowDetails] ([ShowId],[TheatreId],[ShowDate], [ShowTime],[MovieName],[TicketCost], [TicketsAvailable]) Values(1002, 2, '30-MAY-2018', '17:30', 'Hit Man', 200.00, 150)
+SET IDENTITY_INSERT ShowDetails OFF
+GO
+
+
+
+INSERT [BookingDetails] ([BookingId], [UserId], [ShowId], [NoOfTickets], [TotalAmt]) Values(N'B1001', N'jack_sparrow', 1001, 2, 500.00)
+INSERT [BookingDetails] ([BookingId], [UserId], [ShowId], [NoOfTickets], [TotalAmt]) Values(N'B1002', N'mary_potter', 1002, 5, 1000.00)
+
+
+
+Go
+ 
+Select * from Bookingdetails
+Select * From ShowDetails
+Select * From TheatreDetails
+Select * From Users
+
+drop table TheatreDetails
+drop table ShowDetails
+drop table BookingDetails
+drop table Users
+
+Create Procedure usp_BookTheTicket
+(
+	@UserId Varchar(50),
+ 	@ShowId int,
+ 	@NoOfTickets int
+ )
+As
+Begin
+Declare @TicketCost decimal(6,1)
+Begin 
+ 	If Not exists(Select UserId From Bookingdetails Where UserId = @UserId)
+	Begin
+Return -1
+End
+	If Not exists(Select ShowId From Bookingdetails Where ShowId = @ShowId)
+ 	begin 
+return -2
+End
+	if @NoOfTickets < = 0 
+ 	Begin
+return -3
+ 	End	
+
+Select TicketsAvailable, NoOfTickets From ShowDetails s 
+join Bookingdetails b on s.ShowId = b.Showid 
+ 	if TicketsAvailable < noOfTickets
+ 	begin
+ 		return -4
+ 	end
+Begin Try
+Select  @BookingId = 'B' +CAST(CAST(SUBSTRING(MAX(ProductId),2,3) AS INT)+1 AS CHAR) from BookingDetails
+select @TicketCost =  TicketCost from ShowDetails
+Insert Into Bookingdetails([BookingId], [UserId], [ShowId], [NoOfTickets], [TotalAmount]) 
+Values (@BookingId, @UserId, @ShowId, @NoOfTickets, @NoOfTickets * @ticketCost)
+ 	begin
+	return 1
+ 	end
+End Try
+Begin Catch
+ 	return -99
+End Catch
+ End
+ 
+Exec usp_BookTheTicket()
+select * from Categories order by categoryId
+go
+
+ALTER PROC usp_AddCategory
+(
+    @CategoryId TINYINT OUT,
+    @CategoryName VARCHAR(20)
+)
+AS
+BEGIN
+DECLARE @RetVal INT
+    SET @CategoryId = 0
+    IF @CategoryName IS NULL
+    SET @RetVal = -1
+ELSE IF EXISTS (SELECT * FROM Categories WHERE CategoryName = @CategoryName)
+    SET @RetVal = -2
+    ELSE
+    BEGIN
+INSERT INTO Categories VALUES (@CategoryName)
+    SET @RetVal = 1
+    SELECT @CategoryId = SCOPE_IDENTITY()
+    END
+RETURN @RetVal
+END
+
+Create function ufn_GetMovieShowtimes(
+ 	@MovieName varchar(50),
+ 	@Location Varchar(50)
+)
+Returns Table
+As
+Return
+ 	Select sd.MovieName, sd.ShowDate, sd.ShowTime,td.TheatreName, sd.TicketCost 
+ 	From TheatreDetails td join ShowDetails sd On td.TheatreId = sd.TheatreId
+where td.Location = @location and sd.MovieName = @MovieName
+Go
